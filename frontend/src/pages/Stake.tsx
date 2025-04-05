@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { Shield } from 'lucide-react';
+import {ethers} from 'ethers';
+
 
 export default function Stake() {
   const [stakeAmount, setStakeAmount] = useState('');

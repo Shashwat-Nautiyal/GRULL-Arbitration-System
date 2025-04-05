@@ -2,22 +2,8 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Menu, X, Scale, Wallet } from 'lucide-react';
 
-export default function Navbar() {
+export default function Navbar(props) {
   const [isOpen, setIsOpen] = useState(false);
-  const [isConnected, setIsConnected] = useState(false);
-  const [walletAddress, setWalletAddress] = useState('');
-
-  const connectWallet = async () => {
-    try {
-      if (window.ethereum) {
-        const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-        setWalletAddress(accounts[0]);
-        setIsConnected(true);
-      }
-    } catch (error) {
-      console.error('Error connecting wallet:', error);
-    }
-  };
 
   return (
     <nav className="bg-white shadow-lg">
@@ -34,16 +20,16 @@ export default function Navbar() {
             <Link to="/stake" className="text-gray-700 hover:text-indigo-600">Stake</Link>
             <Link to="/disputes" className="text-gray-700 hover:text-indigo-600">Register Dispute</Link>
             <Link to="/tokens" className="text-gray-700 hover:text-indigo-600">Buy Tokens</Link>
-            {isConnected ? (
+            {props.isConnected ? (
               <div className="flex items-center px-4 py-2 bg-gray-100 rounded-full">
                 <Wallet className="h-4 w-4 text-indigo-600 mr-2" />
                 <span className="text-sm text-gray-600">
-                  {`${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`}
+                  {`${props.address.slice(0, 6)}...${props.address.slice(-4)}`}
                 </span>
               </div>
             ) : (
               <button
-                onClick={connectWallet}
+                onClick={props.connectWallet}
                 className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
               >
                 <Wallet className="h-4 w-4 mr-2" />
@@ -89,9 +75,9 @@ export default function Navbar() {
             >
               Buy Tokens
             </Link>
-            {!isConnected && (
+            {!props.isConnected && (
               <button
-                onClick={connectWallet}
+                onClick={props.connectWallet}
                 className="w-full text-left px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-indigo-600 hover:bg-gray-50"
               >
                 Connect Wallet
