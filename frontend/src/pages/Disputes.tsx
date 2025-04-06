@@ -3,14 +3,20 @@ import { Upload, Plus } from 'lucide-react';
 import { PinataSDK } from "pinata";
 import { ethers } from 'ethers';
 import { useEffect } from 'react';
+import { contractABI } from '../components/constants';
 
-export default function Disputes() {
+interface DisputeProps {
+  provider: ethers.providers.Web3Provider;
+} 
+
+export default function Disputes(props: DisputeProps) {
 
   const [formData, setFormData] = useState({
     title: '',
     description: '',
     partyAAddress: '',
     partyBAddress: '',
+    time: '',
     evidence: null as File | null,
   });
 
@@ -18,6 +24,10 @@ export default function Disputes() {
   const [uploading, setUploading] = useState(false);
   const [uploadResult, setUploadResult] = useState(null);
   const [error, setError] = useState('');
+  const [contract, setContract] = useState<ethers.Contract | null>(null);
+  const [contractAddress, setContractAddress] = useState<string>('0x3182c0ADEb8fc07029a7C6162B4a895694718122');
+  const [isLoading, setIsLoading] = useState(false);
+  const [transactionStatus, setTransactionStatus] = useState<string>('');
 
   const connectWallet = async () => {
     if (typeof window.ethereum !== 'undefined') {
@@ -85,75 +95,6 @@ export default function Disputes() {
       throw error;
     }
   };
-
-  // const uploadFileAndFormData = async () => {
-  //   setUploading(true);
-  //   setError('');
-  //   setUploadResult(null);
-  
-  //   try {
-  //     let fileIpfsHash = '';
-  
-  //     // // STEP 1: Upload the evidence file to IPFS
-  //     // if (formData.evidence) {
-  //     //   const fileUploadUrl = await getPresignedUrl();
-  //     //   const fileForm = new FormData();
-  //     //   fileForm.append('file', formData.evidence);
-  
-  //     //   const fileRes = await fetch(fileUploadUrl, {
-  //     //     method: 'POST',
-  //     //     body: fileForm,
-  //     //     mode: 'cors',
-  //     //   });
-  
-  //     //   if (!fileRes.ok) {
-  //     //     throw new Error('Failed to upload file to IPFS');
-  //     //   }
-  
-  //     //   const fileResult = await fileRes.json();
-  //     //   fileIpfsHash = fileResult.IpfsHash || fileResult.cid || '';
-  //     // }
-  
-  //     // STEP 2: Prepare the full dispute data JSON
-  //     const disputeData = {
-  //       title: formData.title,
-  //       description: formData.description,
-  //       partyAAddress: formData.partyAAddress,
-  //       partyBAddress: formData.partyBAddress,
-  //       // evidenceIpfsHash: fileIpfsHash,
-  //       createdAt: new Date().toISOString(),
-  //     };
-  
-  //     // // STEP 3: Upload JSON metadata to IPFS
-  //     const metadataUploadUrl = await getPresignedUrl(disputeData);
-  
-  //     // const metadataRes = await fetch(metadataUploadUrl, {
-  //     //   method: 'POST',
-  //     //   headers: {
-  //     //     'Content-Type': 'application/json',
-  //     //   },
-  //     //   body: JSON.stringify(disputeData),
-  //     //   mode: 'cors',
-  //     // });
-  
-  //     // if (!metadataRes.ok) {
-  //     //   throw new Error('Failed to upload dispute metadata to IPFS');
-  //     // }
-  
-  //     // const metadataResult = await metadataRes.json();
-  //     // setUploadResult(metadataResult);
-  
-  //     // console.log('Form and file uploaded to IPFS:', metadataResult);
-  //     // return metadataResult;
-  
-  //   } catch (err: any) {
-  //     console.error('Upload error:', err);
-  //     setError(err.message || 'Upload failed');
-  //     throw err;
-  //   } finally {
-  //     setUploading(false);
-  //   }
-  // };
   
   const uploadFileAndFormData = async () => {
     try {
@@ -171,6 +112,7 @@ export default function Disputes() {
   
       const form = new FormData();
       form.append('title', formData.title);
+      form.append('time', formData.time);
       form.append('description', formData.description);
       form.append('partyAAddress', formData.partyAAddress);
       form.append('partyBAddress', formData.partyBAddress);
@@ -197,18 +139,70 @@ export default function Disputes() {
       throw err;
     }
   };
+
+    const connectToExistingContract = async (address: string)=>{
+      try {
+        if(!props.provider) {
+          throw new Error("Web3 provider is not connected");
+        }
+        const signer = props.provider.getSigner();
+        const contractInstance = new ethers.Contract(address, contractABI, signer);
+        setContract(contractInstance);
+        setContractAddress(address);
+        return contractInstance;
+      } catch (error) {
+        console.error("Error connecting to contract:", error);
+        return null;
+      }
+    }
+
   
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-  
+    setIsLoading(true);
+    setTransactionStatus('Processing transaction...');
+    let cid;
     try {
       const result = await uploadFileAndFormData();
       console.log("CID:", result);
+      cid = result;
     
     } catch (err) {
       console.error('Submit error:', err);
     }
+
+    try {
+      const contractInstance = await connectToExistingContract(contractAddress);
+      
+      if (!contractInstance) {
+        throw new Error("Failed to connect to contract");
+      }
+      console.log("formdata", formData);
+
+      const tx = await contractInstance.createDispute(
+        formData.partyAAddress,
+        formData.partyBAddress,
+        cid,
+        formData.time,
+      );
+
+      setTransactionStatus('Transaction submitted, waiting for confirmation...');
+      
+      // Wait for transaction confirmation
+      const receipt = await tx.wait();
+      setTransactionStatus(`Transaction confirmed! Hash: ${receipt.transactionHash}`);
+      console.log("Transaction receipt:", receipt);
+
+
+    } catch (error) {
+      console.error("Error during staking:", error);
+      setTransactionStatus(`Transaction failed: ${error instanceof Error ? error.message : String(error)}`);
+
+      
+    }
+
+
   
     //Reset
     setFormData({
@@ -216,6 +210,7 @@ export default function Disputes() {
       description: '',
       partyAAddress: walletAddress,
       partyBAddress: '',
+      time: '',
       evidence: null,
     });
   };
@@ -302,6 +297,20 @@ export default function Disputes() {
                       required
                     />
                   </div>
+                </div>
+                <div>
+                  <label htmlFor="title" className="block text-sm font-medium text-gray-700">
+                    Expiry Time
+                  </label>
+                  <input
+                    type="number"
+                    id="time"
+                    placeholder='hrs'
+                    className="mt-1 p-3   block w-full border-gray-500 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                    value={formData.time}
+                    onChange={(e) => setFormData({ ...formData, time: e.target.value })}
+                    required
+                  />
                 </div>
 
                 {/* <div>
