@@ -1,15 +1,74 @@
 import { useState } from 'react';
 import { CreditCard } from 'lucide-react';
+import { ethers } from 'ethers';
+import { contractABI } from '../components/constants';
 
-export default function Tokens() {
-  const [amount, setAmount] = useState('');
+interface TokenProps{
+  provider: ethers.providers.Web3Provider;
+}
+
+export default function Tokens(props: TokenProps) {
+  const [buyAmount, setBuyAmount] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [contract, setContract] = useState<ethers.Contract | null>(null);
+  const [contractAddress, setContractAddress] = useState<string>('0x3182c0ADEb8fc07029a7C6162B4a895694718122');
+  const [transactionStatus, setTransactionStatus] = useState<string>('');
+
+  const connectToExistingContract = async (address: string)=>{
+    try {
+      const signer = props.provider.getSigner();
+      const contractInstance = new ethers.Contract(address, contractABI, signer);
+      setContract(contractInstance);
+      setContractAddress(address);
+      return contractInstance;
+    } catch (error) {
+      console.error("Error connecting to contract:", error);
+      return null;
+    }
+  }
 
   const handlePurchase = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsProcessing(true);
-    // Implement token purchase logic here
-    setTimeout(() => setIsProcessing(false), 1000);
+    setIsLoading(true);
+    setTransactionStatus('Processing transaction...');
+
+    try {
+      if (!props.provider) {
+        throw new Error("Web3 provider is not connected");
+      }
+      if (!buyAmount) {
+        throw new Error("Please enter a valid amount");
+      }
+      const contractInstance = await connectToExistingContract(contractAddress);
+      
+      if (!contractInstance) {
+        throw new Error("Failed to connect to contract");
+      }
+      
+      const tokenPrice = await contractInstance.tokenPrice();
+      console.log(tokenPrice)
+      //const ethToSend = ethers.utils.parseUnits((Number(ethers.BigNumber.from(tokenPrice) )* parseFloat(buyAmount)).toString(), 18); // Calculate ETH to send based on token price
+      const ethToSend = (Number(ethers.BigNumber.from(tokenPrice) )* parseFloat(buyAmount)).toString();
+      // Call the buyTokens function and pass the number of tokens to buy
+      const tx = await contractInstance.buyTokens(buyAmount, {
+        value: ethToSend,
+      });
+      setTransactionStatus('Transaction submitted, waiting for confirmation...');
+      
+      // Wait for transaction confirmation
+      const receipt = await tx.wait();
+      setTransactionStatus(`Transaction confirmed! Hash: ${receipt.transactionHash}`);
+      console.log("Transaction receipt:", receipt);
+      
+      // Reset stake amount
+      setBuyAmount('');
+    } catch (error) {
+      console.error("Error during staking:", error);
+      setTransactionStatus(`Transaction failed: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -38,10 +97,10 @@ export default function Tokens() {
                       type="number"
                       name="amount"
                       id="amount"
-                      className="focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-4 pr-12 sm:text-sm border-gray-300 rounded-md"
+                      className="focus:ring-indigo-500 p-2 focus:border-indigo-500 block w-full pl-4 pr-12 sm:text-sm border-gray-300 rounded-md"
                       placeholder="0.0"
-                      value={amount}
-                      onChange={(e) => setAmount(e.target.value)}
+                      value={buyAmount}
+                      onChange={(e) => setBuyAmount(e.target.value)}
                       required
                     />
                     <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
@@ -60,10 +119,10 @@ export default function Tokens() {
                       <span className="text-sm font-medium text-gray-500">Network Fee</span>
                       <span className="text-sm text-gray-900">≈ 0.001 ETH</span>
                     </div>
-                    {amount && (
+                    {buyAmount && (
                       <div className="flex justify-between">
                         <span className="text-sm font-medium text-gray-500">You will receive</span>
-                        <span className="text-sm text-gray-900">{Number(amount) * 1000} TOKENS</span>
+                        <span className="text-sm text-gray-900">{Number(buyAmount)} TOKENS</span>
                       </div>
                     )}
                   </div>
