@@ -1,18 +1,103 @@
 import { useState } from 'react';
 import { Shield } from 'lucide-react';
 import {ethers} from 'ethers';
+import {contractABI, contractBytecode} from '../components/constants';
 
+interface StakeProps {
+  provider: ethers.providers.Web3Provider;
+}
 
-export default function Stake() {
+export default function Stake(props: StakeProps) {
   const [stakeAmount, setStakeAmount] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [contract, setContract] = useState<ethers.Contract | null>(null);
+  const [contractAddress, setContractAddress] = useState<string>('0x3182c0ADEb8fc07029a7C6162B4a895694718122');
+  const [deploymentStatus, setDeploymentStatus] = useState<string>('');
+  const [transactionStatus, setTransactionStatus] = useState<string>('');
+
+
+  // const deployContract = async () => {
+  //   try {
+  //     setDeploymentStatus('Deploying contract...');
+  //     const signer = props.provider.getSigner();
+      
+  //     // Create contract factory
+  //     const contractFactory = new ethers.ContractFactory(
+  //       contractABI,
+  //       contractBytecode,
+  //       signer
+  //     );
+      
+  //     // Deploy contract
+  //     const deployedContract = await contractFactory.deploy();
+  //     await deployedContract.deployed();
+      
+  //     setContract(deployedContract);
+  //     setContractAddress(deployedContract.address);
+  //     setDeploymentStatus(`Contract deployed successfully at: ${deployedContract.address}`);
+  //     console.log("Contract deployed at:", deployedContract.address);
+  //     return deployedContract;
+  //   } catch (error) {
+  //     console.error("Error deploying contract:", error);
+  //     setDeploymentStatus(`Deployment failed: ${error instanceof Error ? error.message : String(error)}`);
+  //     return null;
+  //   }
+  // };
+
+  const connectToExistingContract = async (address: string) => {
+    try {
+      const signer = props.provider.getSigner();
+      const contractInstance = new ethers.Contract(address, contractABI, signer);
+      setContract(contractInstance);
+      setContractAddress(address);
+      return contractInstance;
+    } catch (error) {
+      console.error("Error connecting to contract:", error);
+      return null;
+    }
+  };
 
   const handleStake = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    // Implement staking logic here
-    setTimeout(() => setIsLoading(false), 1000);
+    setTransactionStatus('Processing transaction...');
+    
+    try {
+      if (!props.provider) {
+        throw new Error("Web3 provider is not connected");
+      }
+      
+      const signer = props.provider.getSigner();
+      const contractInstance = await connectToExistingContract(contractAddress);
+      
+      if (!contractInstance) {
+        throw new Error("Failed to connect to contract");
+      }
+      
+      
+      // Convert stake amount to appropriate format (assuming it's in ether)
+      const amount = ethers.utils.parseUnits(stakeAmount, 18);
+      
+      // Call the applyForJuror function
+      const tx = await contractInstance.applyForJuror(amount);
+      setTransactionStatus('Transaction submitted, waiting for confirmation...');
+      
+      // Wait for transaction confirmation
+      const receipt = await tx.wait();
+      setTransactionStatus(`Transaction confirmed! Hash: ${receipt.transactionHash}`);
+      console.log("Transaction receipt:", receipt);
+      
+      // Reset stake amount
+      setStakeAmount('');
+    } catch (error) {
+      console.error("Error during staking:", error);
+      setTransactionStatus(`Transaction failed: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setIsLoading(false);
+    }
   };
+
+
 
   return (
     <div className="min-h-screen bg-gray-50 py-12">
@@ -40,7 +125,7 @@ export default function Stake() {
                       type="number"
                       name="stake-amount"
                       id="stake-amount"
-                      className="focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-4 pr-12 sm:text-sm border-gray-300 rounded-md"
+                      className="p-2 focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-4 pr-12 sm:text-sm border-gray-300 rounded-md"
                       placeholder="0.0"
                       value={stakeAmount}
                       onChange={(e) => setStakeAmount(e.target.value)}
@@ -68,7 +153,6 @@ export default function Stake() {
                     </div>
                   </div>
                 </div>
-
                 <button
                   type="submit"
                   disabled={isLoading}
