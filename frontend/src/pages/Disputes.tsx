@@ -5,6 +5,8 @@ import { ethers } from 'ethers';
 import { useEffect } from 'react';
 import { contractABI } from '../components/constants';
 
+
+
 interface DisputeProps {
   provider: ethers.providers.Web3Provider;
 } 
@@ -25,7 +27,7 @@ export default function Disputes(props: DisputeProps) {
   const [uploadResult, setUploadResult] = useState(null);
   const [error, setError] = useState('');
   const [contract, setContract] = useState<ethers.Contract | null>(null);
-  const [contractAddress, setContractAddress] = useState<string>('0x3182c0ADEb8fc07029a7C6162B4a895694718122');
+  const [contractAddress, setContractAddress] = useState<string>(import.meta.env.VITE_CONTRACT_ADDRESS || '0x5D70d61077125Dd0d385E67fB8369273d018685c');
   const [isLoading, setIsLoading] = useState(false);
   const [transactionStatus, setTransactionStatus] = useState<string>('');
 
@@ -97,11 +99,13 @@ export default function Disputes(props: DisputeProps) {
   };
   
   const uploadFileAndFormData = async () => {
+    
     try {
       if (!walletAddress) throw new Error("Wallet not connected");
   
       const message = "I am signing this message to authenticate with Daroga IPFS Upload";
   
+      //not working 
       const signature = await window.ethereum.request({
         method: 'personal_sign',
         params: [

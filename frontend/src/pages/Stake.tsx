@@ -11,38 +11,38 @@ export default function Stake(props: StakeProps) {
   const [stakeAmount, setStakeAmount] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [contract, setContract] = useState<ethers.Contract | null>(null);
-  const [contractAddress, setContractAddress] = useState<string>('0x3182c0ADEb8fc07029a7C6162B4a895694718122');
+  const [contractAddress, setContractAddress] = useState<string>(import.meta.env.VITE_CONTRACT_ADDRESS || '0x5D70d61077125Dd0d385E67fB8369273d018685c');
   const [deploymentStatus, setDeploymentStatus] = useState<string>('');
   const [transactionStatus, setTransactionStatus] = useState<string>('');
 
 
-  // const deployContract = async () => {
-  //   try {
-  //     setDeploymentStatus('Deploying contract...');
-  //     const signer = props.provider.getSigner();
+  const deployContract = async () => {
+    try {
+      setDeploymentStatus('Deploying contract...');
+      const signer = props.provider.getSigner();
       
-  //     // Create contract factory
-  //     const contractFactory = new ethers.ContractFactory(
-  //       contractABI,
-  //       contractBytecode,
-  //       signer
-  //     );
+      // Create contract factory
+      const contractFactory = new ethers.ContractFactory(
+        contractABI,
+        contractBytecode,
+        signer
+      );
       
-  //     // Deploy contract
-  //     const deployedContract = await contractFactory.deploy();
-  //     await deployedContract.deployed();
+      // Deploy contract
+      const deployedContract = await contractFactory.deploy();
+      await deployedContract.deployed();
       
-  //     setContract(deployedContract);
-  //     setContractAddress(deployedContract.address);
-  //     setDeploymentStatus(`Contract deployed successfully at: ${deployedContract.address}`);
-  //     console.log("Contract deployed at:", deployedContract.address);
-  //     return deployedContract;
-  //   } catch (error) {
-  //     console.error("Error deploying contract:", error);
-  //     setDeploymentStatus(`Deployment failed: ${error instanceof Error ? error.message : String(error)}`);
-  //     return null;
-  //   }
-  // };
+      setContract(deployedContract);
+      setContractAddress(deployedContract.address);
+      setDeploymentStatus(`Contract deployed successfully at: ${deployedContract.address}`);
+      console.log("Contract deployed at:", deployedContract.address);
+      return deployedContract;
+    } catch (error) {
+      console.error("Error deploying contract:", error);
+      setDeploymentStatus(`Deployment failed: ${error instanceof Error ? error.message : String(error)}`);
+      return null;
+    }
+  };
 
   const connectToExistingContract = async (address: string) => {
     try {
@@ -153,6 +153,9 @@ export default function Stake(props: StakeProps) {
                     </div>
                   </div>
                 </div>
+                <button onClick ={deployContract} className="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                  Deploy Contract
+                </button>
                 <button
                   type="submit"
                   disabled={isLoading}
@@ -160,6 +163,7 @@ export default function Stake(props: StakeProps) {
                     isLoading ? 'opacity-75 cursor-not-allowed' : ''
                   }`}
                 >
+                  
                   {isLoading ? 'Processing...' : 'Stake Tokens'}
                 </button>
               </form>
